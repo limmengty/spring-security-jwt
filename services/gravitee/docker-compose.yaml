@@ -1,0 +1,70 @@
+networks:
+  frontend:
+    name: frontend
+
+services:
+  gateway:
+    image: graviteeio/apim-gateway:${APIM_VERSION:-4}
+    container_name: e-approval_gateway
+    restart: always
+    volumes:
+      - ./driver:/opt/graviteeio-gateway/plugins/ext/repository-jdbc
+      - ./plugins:/opt/graviteeio-gateway/plugins-ext
+    ports:
+      - '${GRAVITEE_GATEWAY_PORT:-8072}:8082'
+    environment:
+      - GIO_MIN_MEM=256m
+      - GIO_MAX_MEM=512m
+      - gravitee_reporters_elasticsearch_endpoints_0=${GRAVITEE_ELASTIC_URL}
+      - gravitee_reporters_elasticsearch_security_username=${ELASTIC_USERNAME}
+      - gravitee_reporters_elasticsearch_security_password=${ELASTIC_PASSWORD}
+      - GRAVITEE_MANAGEMENT_TYPE=jdbc
+      - GRAVITEE_PLUGINS_PATH_0=$${gravitee.home}/plugins
+      - GRAVITEE_PLUGINS_PATH_1=$${gravitee.home}/plugins-ext
+      - GRAVITEE_MANAGEMENT_JDBC_URL=${GRAVITEE_JDBC_URL}
+
+  management_api:
+    image: graviteeio/apim-management-api:${APIM_VERSION:-4}
+    container_name: e-approval_management_api
+    restart: always
+    volumes:
+      - ./driver:/opt/graviteeio-management-api/plugins/ext/repository-jdbc
+      - ./plugins:/opt/graviteeio-management-api/plugins-ext
+    ports:
+      - '${GRAVITEE_API_PORT:-8073}:8083'
+    environment:
+      - GIO_MIN_MEM=256m
+      - GIO_MAX_MEM=512m
+      - GRAVITEE_MANAGEMENT_TYPE=jdbc
+      - GRAVITEE_PLUGINS_PATH_0=$${gravitee.home}/plugins
+      - GRAVITEE_PLUGINS_PATH_1=$${gravitee.home}/plugins-ext
+      - GRAVITEE_MANAGEMENT_JDBC_URL=${GRAVITEE_JDBC_URL}
+      - gravitee_analytics_elasticsearch_endpoints_0=${GRAVITEE_ELASTIC_URL}
+      - gravitee_analytics_elasticsearch_security_username=${ELASTIC_USERNAME}
+      - gravitee_analytics_elasticsearch_security_password=${ELASTIC_PASSWORD}
+
+  management_ui:
+    image: graviteeio/apim-management-ui:${APIM_VERSION:-4}
+    container_name: e-approval_management_ui
+    restart: always
+    ports:
+      - '${GRAVITEE_MANAGEMENT_PORT:-8074}:8080'
+    depends_on:
+      - management_api
+    environment:
+      - MGMT_API_URL=${GRAVITEE_API_URL}/management/organizations/DEFAULT/environments/DEFAULT/
+    networks:
+      - frontend
+
+  portal_ui:
+    image: graviteeio/apim-portal-ui:${APIM_VERSION:-4}
+    container_name: e-approval_portal_ui
+    restart: always
+    ports:
+      - '${GRAVITEE_PORTAL_PORT:-8075}:8080'
+    depends_on:
+      - management_api
+    environment:
+      - PORTAL_API_URL=${GRAVITEE_API_URL}/portal/environments/DEFAULT
+    networks:
+      - frontend
